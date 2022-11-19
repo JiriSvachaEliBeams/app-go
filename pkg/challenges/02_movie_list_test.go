@@ -30,28 +30,31 @@ func TestMovieList(outer *testing.T) {
 
 	limit := 1
 
-	output, err := service.FindAll("", paging.NewPaging("", "title", "ASC", 0, limit))
+	output, err := service.FindAllByReleased(1999, paging.NewPaging(" ", "title", "ASC", 0, limit))
 	assertNilError(outer, err)
+	fmt.Println(output)
 
-	assertEquals(outer, len(output), limit)
+	assertEquals(outer, len(output), 4)
 
-	// Test Pagination
-	next, err := service.FindAll("", paging.NewPaging("", "title", "ASC", 1, limit))
+	// assertEquals(outer, len(output), limit)
 
-	assertNilError(outer, err)
-	assertEquals(outer, len(output), limit)
-	assertNotEquals(outer, next[0]["title"], output[0]["title"])
+	// // Test Pagination
+	// next, err := service.FindAll("", paging.NewPaging("", "title", "ASC", 1, limit))
 
-	// Test Ordering
-	ordered, err := service.FindAll("", paging.NewPaging("", "imdbRating", "DESC", 0, limit))
+	// assertNilError(outer, err)
+	// assertEquals(outer, len(output), limit)
+	// assertNotEquals(outer, next[0]["title"], output[0]["title"])
 
-	assertNilError(outer, err)
-	assertEquals(outer, len(output), limit)
-	assertNotEquals(outer, ordered[0]["title"], output[0]["title"])
+	// // Test Ordering
+	// ordered, err := service.FindAll("", paging.NewPaging("", "imdbRating", "DESC", 0, limit))
 
-	fmt.Println("Here is the answer to the quiz question on the lesson:")
-	fmt.Println("What is the title of the highest rated movie in the recommendations dataset?")
-	fmt.Println("Copy and paste the following answer into the text box:")
+	// assertNilError(outer, err)
+	// assertEquals(outer, len(output), limit)
+	// assertNotEquals(outer, ordered[0]["title"], output[0]["title"])
 
-	fmt.Println(ordered[0]["title"])
+	// fmt.Println("Here is the answer to the quiz question on the lesson:")
+	// fmt.Println("What is the title of the highest rated movie in the recommendations dataset?")
+	// fmt.Println("Copy and paste the following answer into the text box:")
+
+	// fmt.Println(ordered[0]["title"])
 }

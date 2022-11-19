@@ -11,8 +11,15 @@ import (
 
 type Movie = map[string]interface{}
 
+type MoviePlus struct {
+	Title    string
+	Released int64
+}
+
 type MovieService interface {
 	FindAll(userId string, page *paging.Paging) ([]Movie, error)
+
+	FindAllByReleased(released int32, page *paging.Paging) (_ []MoviePlus, err error)
 
 	FindAllByGenre(genre, userId string, page *paging.Paging) ([]Movie, error)
 
@@ -42,17 +49,37 @@ func NewMovieService(loader *fixtures.FixtureLoader, driver neo4j.Driver) MovieS
 // signify whether the user has added the movie to their "My Favorites" list.
 // tag::all[]
 func (ms *neo4jMovieService) FindAll(userId string, page *paging.Paging) (_ []Movie, err error) {
-	// TODO: Open an Session
-	// TODO: Execute a query in a new Read Transaction
-	// TODO: Get a list of Movies from the Result
-	// TODO: Close the session
+	// Open a new Session
+	session := ms.driver.NewSession(neo4j.SessionConfig{})
+	// Execute a query in a new Read Transaction
+	results, err := neo4jReadArrayOfNodes(session, "match(m:Movie{released: $userID}) return m as movie", map[string]interface{}{"userID": userId}, "movie")
 
-	popularMovies, err := ms.loader.ReadArray("fixtures/popular.json")
 	if err != nil {
 		return nil, err
 	}
 
-	return fixtures.Slice(popularMovies, page.Skip(), page.Limit()), err
+	return results.([]Movie), nil
+}
+
+func (ms *neo4jMovieService) FindAllByReleased(released int32, page *paging.Paging) (_ []MoviePlus, err error) {
+	// Open a new Session
+	session, _ := newNeo4jSession(ms.driver)
+	// Execute a query in a new Read Transaction
+	results, err := neo4jReadArrayOfNodes(session, "match(m:Movie{released: $released}) return m {.title, .released} as movie", map[string]interface{}{"released": released}, "movie")
+
+	if err != nil {
+		return nil, err
+	}
+	resMaps := results.([]map[string]interface{})
+	movies := make([]MoviePlus, 0)
+	for _, rm := range resMaps {
+		movie := MoviePlus{}
+		movie.Title = rm["title"].(string)
+		movie.Released = rm["released"].(int64)
+		movies = append(movies, movie)
+	}
+
+	return movies, nil
 }
 
 // end::all[]
@@ -178,7 +205,29 @@ func (ms *neo4jMovieService) FindAllBySimilarity(id string, userId string, page 
 // the user has added to their 'My Favorites' list.
 // tag::getUserFavorites[]
 func getUserFavorites(tx neo4j.Transaction, userId string) ([]string, error) {
-	return nil, nil
+	// If userId is not defined, return nil
+	if userId == "" {
+		return nil, nil
+	}
+
+	// Find Favorites for User
+	results, err := tx.Run(`
+		MATCH (u:User {userId: $userId})-[:HAS_FAVORITE]->(m)
+		RETURN m.tmdbId AS id
+	`, map[string]interface{}{"userId": userId})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an array of IDs
+	var ids []string
+	for results.Next() {
+		record := results.Record()
+		id, _ := record.Get("id")
+		ids = append(ids, id.(string))
+	}
+	return ids, nil
 }
 
 // end::getUserFavorites[]
